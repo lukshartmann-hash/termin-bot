@@ -3,6 +3,7 @@ name: Termin-Check
 on:
   schedule:
     - cron: "*/10 * * * *"
+    - cron: "3 17 * * *"
   workflow_dispatch:
     inputs:
       test_push:
@@ -27,6 +28,14 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           TEST_PUSH: ${{ github.event.inputs.test_push }}
         run: python termin_check.py
+      - name: Lebenszeichen
+        if: github.event.schedule == '3 17 * * *'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          curl -s -H "Title: Termin-Bot laeuft" -H "Priority: low" -H "Tags: white_check_mark" \
+            -d "Taeglicher Check: Bot ist aktiv und prueft weiter." \
+            "https://ntfy.sh/$NTFY_TOPIC"
       - name: Fehler-Push
         if: failure()
         env:
