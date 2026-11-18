@@ -1,0 +1,37 @@
+name: Termin-Check
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_push:
+        description: "Test-Push schicken (1 = ja)"
+        default: "1"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Abhaengigkeiten
+        run: |
+          pip install playwright requests
+          python -m playwright install --with-deps chromium
+      - name: Termine pruefen
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TEST_PUSH: ${{ github.event.inputs.test_push }}
+        run: python termin_check.py
+      - name: Fehler-Push
+        if: failure()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          curl -s -H "Title: Termin-Bot hat ein Problem" -H "Priority: default" -H "Tags: warning" \
+            -d "Lauf fehlgeschlagen. Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            "https://ntfy.sh/$NTFY_TOPIC"
